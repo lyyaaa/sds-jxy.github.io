@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>圣诞树</title>
+    <!-- 引入CSS重置库 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+    <style>
+        * {
+            box-sizing: border-box;
+            /* 统一盒模型 */
+        }
+
+        body {
+            margin: 0;
+            height: 100vh;
+            /* 全屏显示 */
+            overflow: hidden;
+            /* 隐藏滚动条 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #161616;
+            /* 深色背景 */
+            color: #c5a880;
+            /* 主色调 */
+            font-family: sans-serif;
+        }
+
+        /* 音乐选择界面样式 */
+        label {
+            display: inline-block;
+            background-color: #161616;
+            padding: 16px;
+            border-radius: 0.3rem;
+            cursor: pointer;
+            /* 鼠标指针变为手型 */
+            margin-top: 1rem;
+            width: 300px;
+            border-radius: 10px;
+            border: 1px solid #c5a880;
+            text-align: center;
+        }
+
+        ul {
+            list-style-type: none;
+            /* 去除列表默认样式 */
+            padding: 0;
+            margin: 0;
+        }
+
+        .btn {
+            background-color: #161616;
+            border-radius: 10px;
+            color: #c5a880;
+            border: 1px solid #c5a880;
+            padding: 16px;
+            width: 300px;
+            margin-bottom: 16px;
+            line-height: 1.5;
+            cursor: pointer;
+        }
+
+        .separator {
+            font-weight: bold;
+            text-align: center;
+            width: 300px;
+            margin: 16px 0px;
+            color: #a07676;
+        }
+
+        .title {
+            color: #a07676;
+            font-weight: bold;
+            font-size: 1.25rem;
+            margin-bottom: 16px;
+        }
+
+        .text-loading {
+            font-size: 2rem;
+        }
+
+        #signature {
+            position: fixed; /* 固定定位，不受场景滚动/旋转影响 */
+            right: 40px; /* 距离右边缘20px */
+            bottom: 40px; /* 距离下边缘20px */
+            color: #f1d4d4; /* 雪花白偏粉，与雪花颜色协调 */
+            font-family: "Ma Shan Zheng", cursive, sans-serif; /* 毛笔书法字体 */
+            font-size: 36px; /* 字体大小 */
+            text-shadow: 0 0 6px rgba(249, 237, 237, 0.8); /* 发光效果，匹配雪花高亮 */
+            z-index: 1000; /* 层级最高，确保在3D场景和雪花之上 */
+            pointer-events: none; /* 鼠标点击穿透，不影响场景交互 */
+            opacity: 0.8; /* 轻微透明，避免突兀 */
+        }
+
+        #blessing {
+            position: fixed; /* 固定定位，不受场景影响 */
+            left: 40px; /* 距离左边缘20px */
+            top: 40px; /* 距离上边缘20px */
+            color: #f1d4d4; /* 浅色调，与雪花和背景协调 */
+            font-family: "Ma Shan Zheng", cursive, sans-serif; /* 毛笔书法字体 */
+            font-size: 20px; /* 适中大小 */
+            line-height: 1.6; /* 行间距，提升可读性 */
+            text-shadow: 0 0 6px rgba(249, 237, 237, 0.8); /* 轻微发光，匹配场景特效 */
+            z-index: 1000; /* 确保在3D场景之上 */
+            pointer-events: none; /* 鼠标点击穿透，不影响交互 */
+            max-width: 400px; /* 限制宽度，避免文字过宽 */
+            opacity: 0.8; /* 轻微透明，融入场景 */
+        }
+
+
+    </style>
+
+    <script>
+        // 兼容不支持console的环境
+        window.console = window.console || function (t) { };
+    </script>
+    
+    <script>
+        // 如果是嵌入模式，通知父窗口调整大小
+        if (document.location.search.match(/type=embed/gi)) {
+            window.parent.postMessage("resize", "*");
+        }
+    </script>
+</head>
+
+<body translate="no">
+    <!-- 引入Three.js库和相关后处理模块 -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.115.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.115.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.115.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.115.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.115.0/examples/js/shaders/CopyShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.115.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.115.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+
+    <!-- 音乐选择界面 -->
+    <div id="overlay">
+        <ul>
+            <li class="title">请选择音乐</li>
+            <li>
+                <button class="btn" id="btnA" type="button">
+                    Snowflakes Falling Down by Simon Panrucker
+                </button>
+            </li>
+            <li><button class="btn" id="btnB" type="button">This Christmas by Dott</button></li>
+            <li><button class="btn" id="btnC" type="button">No room at the inn by TRG Banks</button></li>
+            <li><button class="btn" id="btnD" type="button">Jingle Bell Swing by Mark Smeby</button></li>
+            <li class="separator">或者</li>
+            <li>
+                <input type="file" id="upload" hidden /> <!-- 隐藏的文件上传控件 -->
+                <label for="upload">上传音乐</label> <!-- 美化的上传按钮 -->
+            </li>
+        </ul>
+    </div>
+
+    <div id="blessing" style="display: none;">
+        愿天空的飘雪，为你降下银白色的祝福，<br>
+        愿美丽的圣诞树挂满你欢乐的记忆，<br>
+        愿彩色的礼盒盛满你喜悦的心情，<br>
+        愿平安夜的钟声敲想你幸福的人生。 <br>
+        <span class="right-align">圣诞快乐!</span> 
+    </div>
+
+    <div id="signature" style="display: none;">To江湘钰</div>
+
+
+    <script id="rendered-js">
+        // 数学常量和工具函数
+        const { PI, sin, cos } = Math;
+        const TAU = 2 * PI; // 2π常量
+
+        // 值映射函数：将一个范围的值映射到另一个范围
+        const map = (value, sMin, sMax, dMin, dMax) => {
+            return dMin + (value - sMin) / (sMax - sMin) * (dMax - dMin);
+        };
+
+        // 生成从m开始的n个连续整数数组
+        const range = (n, m = 0) =>
+            Array(n).
+                fill(m).
+                map((i, j) => i + j);
+
+        // 随机数生成函数
+        const rand = (max, min = 0) => min + Math.random() * (max - min);
+        const randInt = (max, min = 0) => Math.floor(min + Math.random() * (max - min));
+        const randChoise = arr => arr[randInt(arr.length)];
+        // 极坐标转直角坐标
+        const polar = (ang, r = 1) => [r * cos(ang), r * sin(ang)];
+
+        // Three.js核心对象
+        let scene, camera, renderer, analyser;
+        let step = 0; // 动画步长
+        // 着色器 uniforms 变量
+        const uniforms = {
+            time: { type: "f", value: 0.0 }, // 时间变量
+            step: { type: "f", value: 0.0 }  // 步长变量
+        };
+
+        // 后处理效果参数
+        const params = {
+            exposure: 1,
+            bloomStrength: 0.9, //  bloom效果强度
+            bloomThreshold: 0,  //  bloom阈值
+            bloomRadius: 0.5    //  bloom半径
+        };
+
+        let composer; // 后处理合成器
+
+        // 音频分析参数
+        const fftSize = 2048; // FFT大小
+        const totalPoints = 4000; // 圣诞树点数量
+
+        // 音频相关对象
+        const listener = new THREE.AudioListener(); // 音频监听器
+        const audio = new THREE.Audio(listener);    // 音频对象
+
+        // 绑定事件处理函数
+        document.querySelector("input").addEventListener("change", uploadAudio, false);
+        const buttons = document.querySelectorAll(".btn");
+        buttons.forEach((button, index) =>
+            button.addEventListener("click", () => loadAudio(index)));
+
+
+        // 初始化3D场景
+        function init() {
+            // 移除音乐选择界面
+            const overlay = document.getElementById("overlay");
+            overlay.remove();
+
+            // 创建场景
+            scene = new THREE.Scene();
+            // 创建渲染器
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setPixelRatio(window.devicePixelRatio);
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // 创建相机
+            camera = new THREE.PerspectiveCamera(
+                60, // 视角
+                window.innerWidth / window.innerHeight, // 宽高比
+                1, // 近平面
+                1000); // 远平面
+
+            // 设置相机位置和旋转（预定义的视角）
+            camera.position.set(-0.09397456774197047, -2.5597086635726947, 24.420789670889008);
+            camera.rotation.set(0.10443543723052419, -0.003827152981119352, 0.0004011488708739715);
+
+            // 根据WebGL版本选择纹理格式
+            const format = renderer.capabilities.isWebGL2 ?
+                THREE.RedFormat :
+                THREE.LuminanceFormat;
+
+            // 添加音频数据纹理到uniforms
+            uniforms.tAudioData = {
+                value: new THREE.DataTexture(analyser.data, fftSize / 2, 1, format)
+            };
+
+            // 添加场景元素
+            addPlane(scene, uniforms, 3000); // 添加地面
+            addSnow(scene, uniforms);        // 添加雪花
+
+            // 添加多棵圣诞树
+            // range(10).map(i => {
+            //     addTree(scene, uniforms, totalPoints, [20, 0, -20 * i]);
+            //     addTree(scene, uniforms, totalPoints, [-20, 0, -20 * i]);
+            // });
+            addTree(scene, uniforms, totalPoints, [0, 0, 0]);
+
+            // 设置后处理
+            const renderScene = new THREE.RenderPass(scene, camera); // 渲染通道
+
+            // 创建bloom效果通道
+            const bloomPass = new THREE.UnrealBloomPass(
+                new THREE.Vector2(window.innerWidth, window.innerHeight),
+                1.5,
+                0.4,
+                0.85);
+
+            bloomPass.threshold = params.bloomThreshold;
+            bloomPass.strength = params.bloomStrength;
+            bloomPass.radius = params.bloomRadius;
+
+            // 创建合成器并添加通道
+            composer = new THREE.EffectComposer(renderer);
+            composer.addPass(renderScene);
+            composer.addPass(bloomPass);
+
+            document.getElementById("blessing").style.display = "block";
+            document.getElementById("signature").style.display = "block";
+
+            // 添加事件监听器
+            addListners(camera, renderer, composer);
+            // 启动动画循环
+            animate();
+        }
+
+        // 动画循环
+        function animate(time) {
+            // 获取音频频率数据
+            analyser.getFrequencyData();
+            // 更新音频纹理
+            uniforms.tAudioData.value.needsUpdate = true;
+            // 更新步长
+            step = (step + 1) % 1000;
+            uniforms.time.value = time;
+            uniforms.step.value = step;
+            // 渲染场景
+            composer.render();
+            // 循环调用
+            requestAnimationFrame(animate);
+        }
+
+        // 加载指定的音乐
+        function loadAudio(i) {
+            // 显示加载提示
+            document.getElementById("overlay").innerHTML =
+                '<div class="text-loading">正在下载音乐，请稍等...</div>';
+            // 音乐文件列表
+            const files = [
+                "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Simon_Panrucker/Happy_Christmas_You_Guys/Simon_Panrucker_-_01_-_Snowflakes_Falling_Down.mp3",
+                "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/no_curator/Dott/This_Christmas/Dott_-_01_-_This_Christmas.mp3",
+                "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/TRG_Banks/TRG_Banks_Christmas_Album/TRG_Banks_-_12_-_No_room_at_the_inn.mp3",
+                "https://files.freemusicarchive.org/storage-freemusicarchive-org/music/ccCommunity/Mark_Smeby/En_attendant_Nol/Mark_Smeby_-_07_-_Jingle_Bell_Swing.mp3"];
+
+            const file = files[i];
+
+            // 使用Three.js音频加载器加载音频
+            const loader = new THREE.AudioLoader();
+            loader.load(file, function (buffer) {
+                audio.setBuffer(buffer);
+                audio.play();
+                // 创建音频分析器
+                analyser = new THREE.AudioAnalyser(audio, fftSize);
+                // 初始化场景
+                init();
+            });
+        }
+
+        // 上传并加载本地音乐
+        function uploadAudio(event) {
+            // 显示加载提示
+            document.getElementById("overlay").innerHTML =
+                '<div class="text-loading">请稍等...</div>';
+            const files = event.target.files;
+            const reader = new FileReader();
+
+            reader.onload = function (file) {
+                var arrayBuffer = file.target.result;
+
+                // 解码音频数据
+                listener.context.decodeAudioData(arrayBuffer, function (audioBuffer) {
+                    audio.setBuffer(audioBuffer);
+                    audio.play();
+                    // 创建音频分析器
+                    analyser = new THREE.AudioAnalyser(audio, fftSize);
+                    // 初始化场景
+                    init();
+                });
+            };
+
+            // 读取文件为ArrayBuffer
+            reader.readAsArrayBuffer(files[0]);
+        }
+
+        // 添加圣诞树
+        function addTree(scene, uniforms, totalPoints, treePosition) {
+            // 顶点着色器
+            const vertexShader = `
+      attribute float mIndex;
+      varying vec3 vColor;
+      varying float opacity;
+      uniform sampler2D tAudioData;
+      // 归一化函数
+      float norm(float value, float min, float max ){
+       return (value - min) / (max - min);
+      }
+      // 线性插值函数
+      float lerp(float norm, float min, float max){
+       return (max - min) * norm + min;
+      }
+      // 映射函数
+      float map(float value, float sourceMin, float sourceMax, float destMin, float destMax){
+       return lerp(norm(value, sourceMin, sourceMax), destMin, destMax);
+      }
+      void main() {
+       vColor = color;
+       vec3 p = position;
+       vec4 mvPosition = modelViewMatrix * vec4( p, 1.0 );
+       // 从音频纹理获取振幅
+       float amplitude = texture2D( tAudioData, vec2( mIndex, 0.1 ) ).r;
+       float amplitudeClamped = clamp(amplitude-0.4,0.0, 0.6 );
+       // 根据振幅映射点大小
+       float sizeMapped = map(amplitudeClamped, 0.0, 0.6, 1.0, 20.0);
+       // 计算透明度（远处的点更透明）
+       opacity = map(mvPosition.z , -200.0, 15.0, 0.0, 1.0);
+       // 设置点大小（考虑透视）
+       gl_PointSize = sizeMapped * ( 100.0 / -mvPosition.z );
+       gl_Position = projectionMatrix * mvPosition;
+      }
+      `;
+            // 片元着色器
+            const fragmentShader = `
+      varying vec3 vColor;
+      varying float opacity;
+      uniform sampler2D pointTexture;
+      void main() {
+       gl_FragColor = vec4( vColor, opacity );
+       // 应用点纹理
+       gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord ); 
+      }
+      `;
+            // 创建着色器材质
+            const shaderMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    ...uniforms,
+                    pointTexture: {
+                        value: new THREE.TextureLoader().load(`https://assets.codepen.io/3685267/spark1.png`)
+                    }
+                },
+                vertexShader,
+                fragmentShader,
+                blending: THREE.AdditiveBlending, // 加法混合（适合发光效果）
+                depthTest: false,
+                transparent: true,
+                vertexColors: true // 使用顶点颜色
+            });
+
+            // 创建几何体
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            const sizes = [];
+            const phases = [];
+            const mIndexs = [];
+
+            const color = new THREE.Color();
+
+            // 生成圣诞树的点
+            for (let i = 0; i < totalPoints; i++) {
+                const t = Math.random();
+                const y = map(t, 0, 1, -8, 10); // y坐标从下到上
+                // 极坐标角度，创建螺旋效果
+                const ang = map(t, 0, 1, 0, 6 * TAU) + TAU / 2 * (i % 2);
+                // 从极坐标转换为xyz坐标，半径随y变化（形成锥形）
+                const [z, x] = polar(ang, map(t, 0, 1, 5, 0));
+
+                // 添加随机扰动，使形状更自然
+                const modifier = map(t, 0, 1, 1, 0);
+                positions.push(x + rand(-0.3 * modifier, 0.3 * modifier));
+                positions.push(y + rand(-0.3 * modifier, 0.3 * modifier));
+                positions.push(z + rand(-0.3 * modifier, 0.3 * modifier));
+
+                // 设置颜色（HSL色彩空间）
+                color.setHSL(map(i, 0, totalPoints, 1.0, 0.0), 1.0, 0.5);
+
+                colors.push(color.r, color.g, color.b);
+                phases.push(rand(1000));
+                sizes.push(1);
+                // 映射索引用于音频采样
+                const mIndex = map(i, 0, totalPoints, 1.0, 0.0);
+                mIndexs.push(mIndex);
+            }
+
+            // 设置几何体属性
+            geometry.setAttribute(
+                "position",
+                new THREE.Float32BufferAttribute(positions, 3).setUsage(
+                    THREE.DynamicDrawUsage)); // 动态绘制，允许更新
+
+            geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+            geometry.setAttribute("size", new THREE.Float32BufferAttribute(sizes, 1));
+            geometry.setAttribute("phase", new THREE.Float32BufferAttribute(phases, 1));
+            geometry.setAttribute("mIndex", new THREE.Float32BufferAttribute(mIndexs, 1));
+
+            // 创建点集并添加到场景
+            const tree = new THREE.Points(geometry, shaderMaterial);
+
+            const [px, py, pz] = treePosition;
+            tree.position.set(px, py, pz);
+
+            scene.add(tree);
+        }
+
+        // 添加雪花效果
+        function addSnow(scene, uniforms) {
+            // 顶点着色器
+            const vertexShader = `
+      attribute float size;
+      attribute float phase;
+      attribute float phaseSecondary;
+      varying vec3 vColor;
+      varying float opacity;
+      uniform float time;
+      uniform float step;
+      // 工具函数
+      float norm(float value, float min, float max ){
+       return (value - min) / (max - min);
+      }
+      float lerp(float norm, float min, float max){
+       return (max - min) * norm + min;
+      }
+      float map(float value, float sourceMin, float sourceMax, float destMin, float destMax){
+       return lerp(norm(value, sourceMin, sourceMax), destMin, destMax);
+      }
+      void main() {
+       float t = time* 0.0006;
+       vColor = color;
+       vec3 p = position;
+       // 雪花下落动画（使用step变量）
+       p.y = map(mod(phase+step, 1000.0), 0.0, 1000.0, 25.0, -8.0);
+       // 雪花左右摇摆
+       p.x += sin(t+phase);
+       p.z += sin(t+phaseSecondary);
+       // 远处雪花透明
+       opacity = map(p.z, -150.0, 15.0, 0.0, 1.0);
+       vec4 mvPosition = modelViewMatrix * vec4( p, 1.0 );
+       gl_PointSize = size * ( 100.0 / -mvPosition.z );
+       gl_Position = projectionMatrix * mvPosition;
+      }
+      `;
+
+            // 片元着色器
+            const fragmentShader = `
+      uniform sampler2D pointTexture;
+      varying vec3 vColor;
+      varying float opacity;
+      void main() {
+       gl_FragColor = vec4( vColor, opacity );
+       gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord ); 
+      }
+      `;
+            // 创建雪花粒子集
+            function createSnowSet(sprite) {
+                const totalPoints = 300;
+                const shaderMaterial = new THREE.ShaderMaterial({
+                    uniforms: {
+                        ...uniforms,
+                        pointTexture: {
+                            value: new THREE.TextureLoader().load(sprite)
+                        }
+                    },
+                    vertexShader,
+                    fragmentShader,
+                    blending: THREE.AdditiveBlending,
+                    depthTest: false,
+                    transparent: true,
+                    vertexColors: true
+                });
+
+                // 创建几何体
+                const geometry = new THREE.BufferGeometry();
+                const positions = [];
+                const colors = [];
+                const sizes = [];
+                const phases = [];
+                const phaseSecondaries = [];
+
+                const color = new THREE.Color();
+
+                // 生成雪花点
+                for (let i = 0; i < totalPoints; i++) {
+                    const [x, y, z] = [rand(25, -25), 0, rand(15, -150)];
+                    positions.push(x);
+                    positions.push(y);
+                    positions.push(z);
+
+                    // 雪花颜色
+                    color.set(randChoise(["#f1d4d4", "#f1f6f9", "#eeeeee", "#f1f1e8"]));
+
+                    colors.push(color.r, color.g, color.b);
+                    phases.push(rand(1000)); // 动画相位，使雪花下落不同步
+                    phaseSecondaries.push(rand(1000));
+                    sizes.push(rand(4, 2)); // 随机大小
+                }
+
+                // 设置几何体属性
+                geometry.setAttribute(
+                    "position",
+                    new THREE.Float32BufferAttribute(positions, 3));
+
+                geometry.setAttribute("color", new THREE.Float32BufferAttribute(colors, 3));
+                geometry.setAttribute("size", new THREE.Float32BufferAttribute(sizes, 1));
+                geometry.setAttribute("phase", new THREE.Float32BufferAttribute(phases, 1));
+                geometry.setAttribute(
+                    "phaseSecondary",
+                    new THREE.Float32BufferAttribute(phaseSecondaries, 1));
+
+                // 创建点集并添加到场景
+                const mesh = new THREE.Points(geometry, shaderMaterial);
+                scene.add(mesh);
+            }
+            // 雪花纹理列表
+            const sprites = [
+                "https://assets.codepen.io/3685267/snowflake1.png",
+                "https://assets.codepen.io/3685267/snowflake2.png",
+                "https://assets.codepen.io/3685267/snowflake3.png",
+                "https://assets.codepen.io/3685267/snowflake4.png",
+                "https://assets.codepen.io/3685267/snowflake5.png"];
+
+            // 添加多种雪花
+            sprites.forEach(sprite => {
+                createSnowSet(sprite);
+            });
+        }
+
+        // 添加地面效果
+        function addPlane(scene, uniforms, totalPoints) {
+            // 顶点着色器
+            const vertexShader = `
+      attribute float size;
+      attribute vec3 customColor;
+      varying vec3 vColor;
+      void main() {
+       vColor = customColor;
+       vec4 mvPosition = modelViewMatrix * vec4( position, 1.0 );
+       gl_PointSize = size * ( 300.0 / -mvPosition.z );
+       gl_Position = projectionMatrix * mvPosition;
+      }
+      `;
+            // 片元着色器
+            const fragmentShader = `
+      uniform vec3 color;
+      uniform sampler2D pointTexture;
+      varying vec3 vColor;
+      void main() {
+       gl_FragColor = vec4( vColor, 1.0 );
+       gl_FragColor = gl_FragColor * texture2D( pointTexture, gl_PointCoord );
+      }
+      `;
+            // 创建着色器材质
+            const shaderMaterial = new THREE.ShaderMaterial({
+                uniforms: {
+                    ...uniforms,
+                    pointTexture: {
+                        value: new THREE.TextureLoader().load(`https://assets.codepen.io/3685267/spark1.png`)
+                    }
+                },
+                vertexShader,
+                fragmentShader,
+                blending: THREE.AdditiveBlending,
+                depthTest: false,
+                transparent: true,
+                vertexColors: true
+            });
+
+            // 创建几何体
+            const geometry = new THREE.BufferGeometry();
+            const positions = [];
+            const colors = [];
+            const sizes = [];
+
+            const color = new THREE.Color();
+
+            // 生成地面点
+            for (let i = 0; i < totalPoints; i++) {
+                const [x, y, z] = [rand(-25, 25), 0, rand(-150, 15)];
+                positions.push(x);
+                positions.push(y);
+                positions.push(z);
+
+                // 地面点颜色
+                color.set(randChoise(["#93abd3", "#f2f4c0", "#9ddfd3"]));
+
+                colors.push(color.r, color.g, color.b);
+                sizes.push(1);
+            }
+
+            // 设置几何体属性
+            geometry.setAttribute(
+                "position",
+                new THREE.Float32BufferAttribute(positions, 3).setUsage(
+                    THREE.DynamicDrawUsage));
+
+            geometry.setAttribute(
+                "customColor",
+                new THREE.Float32BufferAttribute(colors, 3));
+
+            geometry.setAttribute("size", new THREE.Float32BufferAttribute(sizes, 1));
+
+            // 创建点集并添加到场景（作为地面）
+            const plane = new THREE.Points(geometry, shaderMaterial);
+            plane.position.y = -8; // 放置在底部
+            scene.add(plane);
+        }
+
+        // 添加事件监听器
+        function addListners(camera, renderer, composer) {
+            // 按键事件：打印当前相机位置和旋转（用于调试）
+            document.addEventListener("keydown", e => {
+                const { x, y, z } = camera.position;
+                console.log(`camera.position.set(${x},${y},${z})`);
+                const { x: a, y: b, z: c } = camera.rotation;
+                console.log(`camera.rotation.set(${a},${b},${c})`);
+            });
+
+            // 窗口大小改变事件
+            window.addEventListener(
+                "resize",
+                () => {
+                    const width = window.innerWidth;
+                    const height = window.innerHeight;
+
+                    // 更新相机和渲染器
+                    camera.aspect = width / height;
+                    camera.updateProjectionMatrix();
+
+                    renderer.setSize(width, height);
+                    composer.setSize(width, height);
+                },
+                false);
+        }
+    </script>
+</body>
+
+</html>
